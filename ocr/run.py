@@ -268,6 +268,41 @@ def run_module_3_glm46v(images_dir: str, output_dir: str):
 # 🟠 模块四: Auto-Judge (评估器)
 # ============================================================
 
+def normalize_code(text: str) -> str:
+    """
+    代码规范化：压缩空行 + 去除行尾空格 + tab→4空格
+    用于计算 CER/WER/BLEU 等指标时减少格式噪声
+    """
+    lines = text.splitlines()
+    
+    # 1. Tab → 4 spaces
+    lines = [line.replace('\t', '    ') for line in lines]
+    
+    # 2. 去除行尾空格（trailing spaces）
+    lines = [line.rstrip() for line in lines]
+    
+    # 3. 压缩连续空行为单个空行
+    normalized = []
+    prev_blank = False
+    for line in lines:
+        is_blank = (line.strip() == '')
+        if is_blank:
+            if not prev_blank:  # 只保留第一个空行
+                normalized.append('')
+            prev_blank = True
+        else:
+            normalized.append(line)
+            prev_blank = False
+    
+    # 4. 去除首尾空行
+    while normalized and normalized[0] == '':
+        normalized.pop(0)
+    while normalized and normalized[-1] == '':
+        normalized.pop()
+    
+    return '\n'.join(normalized)
+
+
 def _compute_cer(reference: str, hypothesis: str) -> float:
     """
     计算字符错误率 (Character Error Rate)
@@ -829,14 +864,18 @@ def run_module_4_judge(output_dir: str):
         num_pages = len(pages)
         print(f"[{idx}/{total}] Evaluating: {code_id} @ ratio {ratio}x ({num_pages} pages)")
 
-        # 1. Hard metrics
-        cer = _compute_cer(reference, merged_ocr)
-        wer = _compute_wer(reference, merged_ocr)
-        bleu = _compute_token_bleu(reference, merged_ocr)
-        exact_match = _compute_exact_match_rate(reference, merged_ocr)
-        ast_ok = _check_ast_parsable(merged_ocr)
+        # 🌟 规范化处理（用于 hard metrics）
+        ref_normalized = normalize_code(reference)
+        ocr_normalized = normalize_code(merged_ocr)
 
-        # 2. Soft taxonomy
+        # 1. Hard metrics（使用规范化后的文本）
+        cer = _compute_cer(ref_normalized, ocr_normalized)
+        wer = _compute_wer(ref_normalized, ocr_normalized)
+        bleu = _compute_token_bleu(ref_normalized, ocr_normalized)
+        exact_match = _compute_exact_match_rate(ref_normalized, ocr_normalized)
+        ast_ok = _check_ast_parsable(merged_ocr)  # AST 用原始文本
+
+        # 2. Soft taxonomy（使用原始文本，保留缩进/符号/空行信息）
         taxonomy_labels = _detect_all_taxonomy_errors(reference, merged_ocr)
         detected_error_types = [k for k, v in taxonomy_labels.items() if v == 1]
 

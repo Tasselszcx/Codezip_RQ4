@@ -47,8 +47,8 @@ TARGET_LANG = "python"      # 目标语言
 MIN_STARS = 50              # 最小 Star 数
 MAX_STARS = 400             # 最大 Star 数
 MIN_LINES = 50              # 最小行数
-MAX_LINES = 150             # 最大行数
-LIMIT = 100
+MAX_LINES = 120             # 最大行数
+LIMIT = 50
                   # 抓取数量
 OUTPUT_FILE = "dataset_fresh_2025.json"
 
@@ -76,7 +76,7 @@ MAX_FILE_BYTES = 3000
 
 # 随机化设置
 ENABLE_RANDOM = True        # 是否启用随机化
-RANDOM_POOL_SIZE = LIMIT * 10       # 从前 N 个结果中随机抽取
+RANDOM_POOL_SIZE = LIMIT * 15       # 从前 N 个结果中随机抽取
 
 # =============== 新增：代码结构过滤（class）===============
 # 需求：优先采集“包含 class 的 Python 文件”（而不是只有零散 def/json）
