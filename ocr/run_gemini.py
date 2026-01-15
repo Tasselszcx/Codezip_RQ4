@@ -4,6 +4,7 @@ import shutil
 import time
 import base64
 import re
+import difflib
 from collections import Counter
 from PIL import Image  # 用于手动实现视觉压缩
 import text_to_image_compact 
@@ -26,9 +27,16 @@ DEFAULT_DATASET_FILENAME = "dataset_gemini.json"
 DATASET_FILENAME = os.getenv("DATASET_FILENAME", DEFAULT_DATASET_FILENAME).strip() or DEFAULT_DATASET_FILENAME
 TARGET_RATIOS = [1, 2, 4, 8]  # 我们的压缩目标
 
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "y", "on")
+
 # ================= 模块三配置（Inference Engine）=================
 # 使用 Gemini-3-pro-preview（通过 aihubmix OpenAI-compat 接口）
-RUN_MODULE_3 = True
+RUN_MODULE_3 = _env_bool("RUN_MODULE_3", True)
 AIHUBMIX_BASE_URL = "https://aihubmix.com/v1"
 GEMINI_MODEL_NAME = "gemini-3-pro-preview"  # 🌟 修改为 Gemini 模型
 OCR_SYSTEM_PROMPT = "You are an OCR engine for code images."
@@ -49,7 +57,7 @@ OCR_PARALLEL_MIN_INTERVAL_SECONDS = float(os.getenv("OCR_PARALLEL_MIN_INTERVAL_S
 # =========================================
 
 # ================= 模块四配置（Auto-Judge）=================
-RUN_MODULE_4 = True  # 是否运行评估模块
+RUN_MODULE_4 = _env_bool("RUN_MODULE_4", True)  # 是否运行评估模块
 JUDGE_LLM_MODEL = "gpt-5-mini"  # 用于soft taxonomy分类的模型
 
 # 错误分类体系 (8类)
@@ -468,6 +476,50 @@ def normalize_code(text: str) -> str:
         normalized.pop()
     
     return '\n'.join(normalized)
+
+
+def _split_nonblank_lines_for_diff(text: str) -> list[str]:
+    """用于 codediff 的预处理：tab->4空格、去行尾空格、删除所有空行（不动行首缩进）。"""
+    lines = text.splitlines()
+    lines = [line.replace('\t', '    ').rstrip() for line in lines]
+    return [line for line in lines if line.strip() != ""]
+
+
+def _compute_codediff_metrics_no_blank(reference: str, hypothesis: str) -> dict:
+    ref_lines = _split_nonblank_lines_for_diff(reference)
+    hyp_lines = _split_nonblank_lines_for_diff(hypothesis)
+
+    sm = difflib.SequenceMatcher(a=ref_lines, b=hyp_lines, autojunk=False)
+    opcodes = sm.get_opcodes()
+
+    added = 0
+    removed = 0
+    replaced = 0
+    hunks = 0
+
+    for tag, i1, i2, j1, j2 in opcodes:
+        if tag != "equal":
+            hunks += 1
+        if tag == "insert":
+            added += (j2 - j1)
+        elif tag == "delete":
+            removed += (i2 - i1)
+        elif tag == "replace":
+            replaced += max(i2 - i1, j2 - j1)
+
+    ref_line_count = len(ref_lines)
+    change = added + removed + replaced
+
+    return {
+        "line_similarity": round(sm.ratio(), 4),
+        "added_lines": added,
+        "removed_lines": removed,
+        "replaced_lines": replaced,
+        "diff_hunks": hunks,
+        "change_rate": round(change / max(1, ref_line_count), 4),
+        "ref_nonblank_lines": ref_line_count,
+        "hyp_nonblank_lines": len(hyp_lines),
+    }
 
 
 def _compute_cer(reference: str, hypothesis: str) -> float:
@@ -1058,10 +1110,15 @@ def run_module_4_judge(
     stats_by_ratio = {r: {
         "cer_sum": 0, "wer_sum": 0, "bleu_sum": 0, "codebleu_sum": 0,
         "exact_match_sum": 0,
+        "codediff_line_sim_sum": 0.0,
+        "codediff_change_rate_sum": 0.0,
+        "codediff_added_sum": 0,
+        "codediff_removed_sum": 0,
+        "codediff_replaced_sum": 0,
+        "codediff_hunks_sum": 0,
         "count": 0,
         "errors": Counter(), "taxonomy_sums": Counter()
     } for r in TARGET_RATIOS}
-
     # 清空 detail 文件
     open(detail_path, "w").close()
 
@@ -1112,6 +1169,9 @@ def run_module_4_judge(
             "detected_errors": detected_error_types,
         }
 
+        codediff_no_blank = _compute_codediff_metrics_no_blank(reference, merged_ocr)
+        detail_rec["codediff_no_blank"] = codediff_no_blank
+
         with open(detail_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(detail_rec, ensure_ascii=False) + "\n")
 
@@ -1122,6 +1182,12 @@ def run_module_4_judge(
             stats_by_ratio[ratio]["bleu_sum"] += bleu
             stats_by_ratio[ratio]["codebleu_sum"] += codebleu
             stats_by_ratio[ratio]["exact_match_sum"] += exact_match
+            stats_by_ratio[ratio]["codediff_line_sim_sum"] += float(codediff_no_blank.get("line_similarity", 0.0))
+            stats_by_ratio[ratio]["codediff_change_rate_sum"] += float(codediff_no_blank.get("change_rate", 0.0))
+            stats_by_ratio[ratio]["codediff_added_sum"] += int(codediff_no_blank.get("added_lines", 0))
+            stats_by_ratio[ratio]["codediff_removed_sum"] += int(codediff_no_blank.get("removed_lines", 0))
+            stats_by_ratio[ratio]["codediff_replaced_sum"] += int(codediff_no_blank.get("replaced_lines", 0))
+            stats_by_ratio[ratio]["codediff_hunks_sum"] += int(codediff_no_blank.get("diff_hunks", 0))
             stats_by_ratio[ratio]["count"] += 1
             
             # 记录该样本中出现的错误（taxonomy）
@@ -1145,6 +1211,12 @@ def run_module_4_judge(
             "avg_token_bleu": round(s["bleu_sum"] / s["count"], 4),
             "avg_codebleu": round(s["codebleu_sum"] / s["count"], 4),
             "avg_exact_match_rate": round(s["exact_match_sum"] / s["count"], 4),
+            "avg_codediff_line_similarity_no_blank": round(s["codediff_line_sim_sum"] / s["count"], 4),
+            "avg_codediff_change_rate_no_blank": round(s["codediff_change_rate_sum"] / s["count"], 4),
+            "avg_codediff_added_lines_no_blank": round(s["codediff_added_sum"] / s["count"], 4),
+            "avg_codediff_removed_lines_no_blank": round(s["codediff_removed_sum"] / s["count"], 4),
+            "avg_codediff_replaced_lines_no_blank": round(s["codediff_replaced_sum"] / s["count"], 4),
+            "avg_codediff_diff_hunks_no_blank": round(s["codediff_hunks_sum"] / s["count"], 4),
             "error_counts": dict(s["errors"]),  # 原始计数
             "error_rates": error_rates,  # 检出率
         }
@@ -1165,6 +1237,14 @@ def run_module_4_judge(
             f"      ├─ CodeBLEU={data.get('avg_codebleu', 0.0):.4f}, "
             f"BLEU={data['avg_token_bleu']:.4f}, Exact Match={data['avg_exact_match_rate']:.2%}"
         )
+        if "avg_codediff_line_similarity_no_blank" in data:
+            print(
+                "      ├─ CodeDiff(no-blank): "
+                f"line_sim={data.get('avg_codediff_line_similarity_no_blank', 0.0):.4f}, "
+                f"change_rate={data.get('avg_codediff_change_rate_no_blank', 0.0):.4f}, "
+                f"hunks={data.get('avg_codediff_diff_hunks_no_blank', 0.0):.2f}, "
+                f"replaced={data.get('avg_codediff_replaced_lines_no_blank', 0.0):.2f}"
+            )
         if data['error_counts']:
             err_str = ", ".join([f"{k}:{v}" for k, v in data['error_counts'].items()])
             print(f"      └─ Errors: {err_str}")
@@ -1211,9 +1291,10 @@ def run_full_process():
 
     # 0. 图片输入模式
     if USE_EXISTING_IMAGES:
-        if not os.path.exists(IMAGES_DIR):
+        if RUN_MODULE_3 and (not os.path.exists(IMAGES_DIR)):
             print("❌ USE_EXISTING_IMAGES=1 but images directory not found:")
             print(f"   - {os.path.abspath(IMAGES_DIR)}")
+            print("   你当前启用了 RUN_MODULE_3（需要图片做 OCR）。")
             print("   请设置 $env:EXISTING_IMAGES_DIR=\"...\" 指向已有图片目录，或先跑一次模块1/2生成图片。")
             return
         print("🧩 Using existing images (skip Module 1 & 2)")
@@ -1238,7 +1319,10 @@ def run_full_process():
     removed = []
     # 使用已有图片集时：不要删除 dataset（否则 judge 没有 GT）。
     # 走全流程时：会重建 dataset，因此可安全清理掉旧的 dataset 及 legacy dataset.json。
-    to_remove = [gemini_ocr_jsonl, gemini_judge_detail, gemini_judge_summary]
+    to_remove = [gemini_judge_detail, gemini_judge_summary]
+    # 只有在要重新跑 OCR 时才删除 ocr.jsonl；只跑 Module 4 时保留现有 OCR 结果。
+    if RUN_MODULE_3:
+        to_remove.insert(0, gemini_ocr_jsonl)
     if not USE_EXISTING_IMAGES:
         to_remove.extend([gemini_dataset_json, legacy_dataset_json])
 
