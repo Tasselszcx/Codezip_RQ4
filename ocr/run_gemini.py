@@ -25,7 +25,7 @@ EXISTING_IMAGES_DIR = os.getenv("EXISTING_IMAGES_DIR", "").strip()
 IMAGES_DIR = EXISTING_IMAGES_DIR or IMAGES_DIR_DEFAULT
 DEFAULT_DATASET_FILENAME = "dataset_gemini.json"
 DATASET_FILENAME = os.getenv("DATASET_FILENAME", DEFAULT_DATASET_FILENAME).strip() or DEFAULT_DATASET_FILENAME
-TARGET_RATIOS = [1, 2, 4, 8]  # 我们的压缩目标
+TARGET_RATIOS = [1, 2, 4, 6, 8]  # 我们的压缩目标
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -35,10 +35,10 @@ def _env_bool(name: str, default: bool) -> bool:
     return raw.strip().lower() in ("1", "true", "yes", "y", "on")
 
 # ================= 模块三配置（Inference Engine）=================
-# 使用 Gemini-3-pro-preview（通过 aihubmix OpenAI-compat 接口）
+# 使用 Gemini（通过 aihubmix OpenAI-compat 接口）
 RUN_MODULE_3 = _env_bool("RUN_MODULE_3", True)
 AIHUBMIX_BASE_URL = "https://aihubmix.com/v1"
-GEMINI_MODEL_NAME = "gemini-3-pro-preview"  # 🌟 修改为 Gemini 模型
+GEMINI_MODEL_NAME = "gemini-3-flash-preview"  # 🌟 修改为 Gemini 模型
 OCR_SYSTEM_PROMPT = "You are an OCR engine for code images."
 OCR_USER_PROMPT = (
     "Transcribe the code in this image exactly.\n"
@@ -208,7 +208,7 @@ def _parse_ratio_from_filename(image_path: str) -> int:
 
 def run_module_3_gemini(images_dir: str, output_dir: str):
     print("\n" + "=" * 40)
-    print("🚀 Running Module 3: Inference Engine (gemini-3-pro-preview)")
+    print(f"🚀 Running Module 3: Inference Engine ({GEMINI_MODEL_NAME})")
     print("=" * 40)
 
     if OpenAI is None:
@@ -1255,7 +1255,7 @@ def run_module_4_judge(
 def apply_visual_corruption(image_path, ratio):
     """
     手动实现视觉干扰器：读取原图，先按比例缩小再放大回原尺寸（保持尺寸一致）
-    约定：无论 ratio 是 1/2/4/8，都生成一个带 _ratio{ratio} 后缀的新文件。
+    约定：无论 ratio 是 1/2/4/6/8，都生成一个带 _ratio{ratio} 后缀的新文件。
     """
     try:
         with Image.open(image_path) as img:
@@ -1438,7 +1438,7 @@ def run_full_process():
         print("="*40)
 
     # -------------------------------------------------
-    # 🟣 模块三: 推理引擎 (Inference Engine) - gemini-3-pro-preview
+    # 🟣 模块三: 推理引擎 (Inference Engine)
     # -------------------------------------------------
     if RUN_MODULE_3:
         run_module_3_gemini(IMAGES_DIR, OUTPUT_DIR)

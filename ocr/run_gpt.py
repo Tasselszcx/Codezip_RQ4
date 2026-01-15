@@ -16,16 +16,16 @@ except Exception:
 
 # ================= 配置区 =================
 OUTPUT_DIR = "./experiment_output"
-IMAGES_DIR_DEFAULT = os.path.join(OUTPUT_DIR, "images_gpt52")  # 🌟 GPT-5.2 专用目录
+IMAGES_DIR_DEFAULT = os.path.join(OUTPUT_DIR, "images_gpt51")  # 🌟 GPT 专用目录
 # 是否使用“已有图片集”直接 OCR + judge（用于跨模型公平对比）。
 # - USE_EXISTING_IMAGES=1：跳过模块1/2，不清理 images；直接用 EXISTING_IMAGES_DIR（或默认 IMAGES_DIR_DEFAULT）里的图片。
 # - DATASET_FILENAME：指定同一份 GT 数据集文件名（放在 OUTPUT_DIR 下），两种模型跑同一张表即可对比。
 USE_EXISTING_IMAGES = os.getenv("USE_EXISTING_IMAGES", "0").strip().lower() in ("1", "true", "yes", "y")
 EXISTING_IMAGES_DIR = os.getenv("EXISTING_IMAGES_DIR", "").strip()
 IMAGES_DIR = EXISTING_IMAGES_DIR or IMAGES_DIR_DEFAULT
-DEFAULT_DATASET_FILENAME = "dataset_gpt52.json"
+DEFAULT_DATASET_FILENAME = "dataset_gpt51.json"
 DATASET_FILENAME = os.getenv("DATASET_FILENAME", DEFAULT_DATASET_FILENAME).strip() or DEFAULT_DATASET_FILENAME
-TARGET_RATIOS = [1, 2, 4, 8]  # 我们的压缩目标
+TARGET_RATIOS = [1, 2, 4, 6, 8]  # 我们的压缩目标
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -35,10 +35,10 @@ def _env_bool(name: str, default: bool) -> bool:
     return raw.strip().lower() in ("1", "true", "yes", "y", "on")
 
 # ================= 模块三配置（Inference Engine）=================
-# 使用 GPT-5.2（通过 aihubmix OpenAI-compat 接口）
+# 使用 GPT（通过 aihubmix OpenAI-compat 接口）
 RUN_MODULE_3 = _env_bool("RUN_MODULE_3", True)
 AIHUBMIX_BASE_URL = "https://aihubmix.com/v1"
-GPT_MODEL_NAME = "gpt-5.2"  # 🌟 修改为 GPT 模型
+GPT_MODEL_NAME = "gpt-5.1"  # 🌟 修改为 GPT 模型
 OCR_SYSTEM_PROMPT = "You are an OCR engine for code images."
 OCR_USER_PROMPT = (
     "Transcribe the code in this image exactly.\n"
@@ -208,7 +208,7 @@ def _parse_ratio_from_filename(image_path: str) -> int:
 
 def run_module_3_gpt52(images_dir: str, output_dir: str):
     print("\n" + "=" * 40)
-    print("🚀 Running Module 3: Inference Engine (gpt-5.2)")
+    print(f"🚀 Running Module 3: Inference Engine ({GPT_MODEL_NAME})")
     print("=" * 40)
 
     if OpenAI is None:
@@ -239,7 +239,7 @@ def run_module_3_gpt52(images_dir: str, output_dir: str):
     print(f"🔑 AIHUBMIX_API_KEY loaded ({api_key_source}): {_mask_api_key(api_key)}")
 
     os.makedirs(output_dir, exist_ok=True)
-    out_jsonl = os.path.join(output_dir, "gpt52_ocr.jsonl")  # 🌟 修改输出文件名
+    out_jsonl = os.path.join(output_dir, "gpt51_ocr.jsonl")  # 🌟 修改输出文件名
     done = _load_done_set(out_jsonl)
 
     client = OpenAI(api_key=api_key, base_url=AIHUBMIX_BASE_URL)
@@ -1255,7 +1255,7 @@ def run_module_4_judge(
 def apply_visual_corruption(image_path, ratio):
     """
     手动实现视觉干扰器：读取原图，先按比例缩小再放大回原尺寸（保持尺寸一致）
-    约定：无论 ratio 是 1/2/4/8，都生成一个带 _ratio{ratio} 后缀的新文件。
+    约定：无论 ratio 是 1/2/4/6/8，都生成一个带 _ratio{ratio} 后缀的新文件。
     """
     try:
         with Image.open(image_path) as img:
@@ -1311,21 +1311,21 @@ def run_full_process():
                 print(f"⚠️ Failed to clean {IMAGES_DIR}: {e}")
 
     # 🧹 清理当前模型上次运行残留的输出文件（避免 done-set 跳过 + 评估结果混淆）
-    gpt52_ocr_jsonl = os.path.join(OUTPUT_DIR, "gpt52_ocr.jsonl")
-    gpt52_model_tag = _safe_filename_component(GPT_MODEL_NAME)
-    gpt52_dataset_json = os.path.join(OUTPUT_DIR, DEFAULT_DATASET_FILENAME)
+    gpt51_ocr_jsonl = os.path.join(OUTPUT_DIR, "gpt51_ocr.jsonl")
+    gpt51_model_tag = _safe_filename_component(GPT_MODEL_NAME)
+    gpt51_dataset_json = os.path.join(OUTPUT_DIR, DEFAULT_DATASET_FILENAME)
     legacy_dataset_json = os.path.join(OUTPUT_DIR, "dataset.json")
-    gpt52_judge_detail = os.path.join(OUTPUT_DIR, f"judge_results_detail_{gpt52_model_tag}.jsonl")
-    gpt52_judge_summary = os.path.join(OUTPUT_DIR, f"judge_summary_{gpt52_model_tag}.json")
+    gpt51_judge_detail = os.path.join(OUTPUT_DIR, f"judge_results_detail_{gpt51_model_tag}.jsonl")
+    gpt51_judge_summary = os.path.join(OUTPUT_DIR, f"judge_summary_{gpt51_model_tag}.json")
     removed = []
     # 使用已有图片集时：不要删除 dataset（否则 judge 没有 GT）。
     # 走全流程时：会重建 dataset，因此可安全清理掉旧的 dataset 及 legacy dataset.json。
-    to_remove = [gpt52_judge_detail, gpt52_judge_summary]
+    to_remove = [gpt51_judge_detail, gpt51_judge_summary]
     # 只有在要重新跑 OCR 时才删除 ocr.jsonl；只跑 Module 4 时保留现有 OCR 结果。
     if RUN_MODULE_3:
-        to_remove.insert(0, gpt52_ocr_jsonl)
+        to_remove.insert(0, gpt51_ocr_jsonl)
     if not USE_EXISTING_IMAGES:
-        to_remove.extend([gpt52_dataset_json, legacy_dataset_json])
+        to_remove.extend([gpt51_dataset_json, legacy_dataset_json])
 
     for p in to_remove:
         if _remove_file_if_exists(p):
@@ -1439,7 +1439,7 @@ def run_full_process():
         print("="*40)
 
     # -------------------------------------------------
-    # 🟣 模块三: 推理引擎 (Inference Engine) - gpt-5.2
+    # 🟣 模块三: 推理引擎 (Inference Engine)
     # -------------------------------------------------
     if RUN_MODULE_3:
         run_module_3_gpt52(IMAGES_DIR, OUTPUT_DIR)
@@ -1448,7 +1448,7 @@ def run_full_process():
     # 🟠 模块四: 自动评估器 (Auto-Judge)
     # -------------------------------------------------
     if RUN_MODULE_4:
-        run_module_4_judge(OUTPUT_DIR, "gpt52_ocr.jsonl", GPT_MODEL_NAME, dataset_filename)
+        run_module_4_judge(OUTPUT_DIR, "gpt51_ocr.jsonl", GPT_MODEL_NAME, dataset_filename)
 
 
 if __name__ == "__main__":

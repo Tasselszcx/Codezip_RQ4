@@ -25,7 +25,7 @@ EXISTING_IMAGES_DIR = os.getenv("EXISTING_IMAGES_DIR", "").strip()
 IMAGES_DIR = EXISTING_IMAGES_DIR or IMAGES_DIR_DEFAULT
 DEFAULT_DATASET_FILENAME = "dataset_glm46.json"
 DATASET_FILENAME = os.getenv("DATASET_FILENAME", DEFAULT_DATASET_FILENAME).strip() or DEFAULT_DATASET_FILENAME
-TARGET_RATIOS = [1, 2, 4, 8]  # 我们的压缩目标
+TARGET_RATIOS = [1, 2, 4, 6, 8]  # 我们的压缩目标
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -1263,7 +1263,7 @@ def run_module_4_judge(
 def apply_visual_corruption(image_path, ratio):
     """
     手动实现视觉干扰器：读取原图，先按比例缩小再放大回原尺寸（保持尺寸一致）
-    约定：无论 ratio 是 1/2/4/8，都生成一个带 _ratio{ratio} 后缀的新文件。
+    约定：无论 ratio 是 1/2/4/6/8，都生成一个带 _ratio{ratio} 后缀的新文件。
     """
     try:
         with Image.open(image_path) as img:
