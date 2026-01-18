@@ -41,8 +41,8 @@ AIHUBMIX_BASE_URL = "https://aihubmix.com/v1"
 GPT_MODEL_NAME = "gpt-5.1"  # 🌟 修改为 GPT 模型
 OCR_SYSTEM_PROMPT = "You are an OCR engine for code images."
 OCR_USER_PROMPT = (
-    "Transcribe the code in this image exactly.\n"
-    "- This code file may be split across multiple images (pages) in order; this image is one page of the same file.\n"
+    "Transcribe the code in these images exactly.\n"
+    "- These images are consecutive pages of the SAME code file, in order.\n"
     "- The page may start mid-block (e.g., indented lines without a visible 'def' header). Keep the indentation exactly as shown.\n"
     "- Do NOT invent missing context. Do NOT add wrapper code such as 'def', 'class', imports, or any extra lines.\n"
     "- Output plain text only (no Markdown, no code fences).\n"
@@ -168,6 +168,8 @@ def _load_done_set(jsonl_path: str) -> set:
                     obj = json.loads(line)
                     if obj.get("image_path"):
                         done.add(obj["image_path"])
+                    if obj.get("code_id") and ("ratio" in obj):
+                        done.add(f"{obj.get('code_id')}|{obj.get('ratio')}")
                 except Exception:
                     continue
     except Exception:
@@ -207,6 +209,18 @@ def _parse_ratio_from_filename(image_path: str) -> int:
         except Exception:
             return 1
     return 1
+
+
+def _extract_page_num_from_filename(image_path: str) -> int:
+    """page_001_ratio2.png -> 1；提取不到则返回 0。"""
+    stem = os.path.splitext(os.path.basename(image_path))[0]
+    m = re.search(r"page_(\d+)", stem)
+    if not m:
+        return 0
+    try:
+        return int(m.group(1))
+    except Exception:
+        return 0
 
 
 def run_module_3_gpt52(images_dir: str, output_dir: str):
@@ -251,24 +265,40 @@ def run_module_3_gpt52(images_dir: str, output_dir: str):
     skipped = 0
     errors = 0
 
+    # single-turn：按 (code_id, ratio) 分组，把同一个样本的所有 pages 在同一次请求中发送
     image_paths = list(_iter_image_files(images_dir))
-    print(f"🖼️  Total images to OCR: {len(image_paths)}")
+    from collections import defaultdict
+
+    grouped_images = defaultdict(list)  # (code_id, ratio) -> [image_path...]
+    for image_path in image_paths:
+        parent_dir = os.path.dirname(image_path)
+        code_id_dir = os.path.dirname(parent_dir)
+        code_id = os.path.basename(code_id_dir)
+        ratio = _parse_ratio_from_filename(image_path)
+        grouped_images[(code_id, ratio)].append(image_path)
+
+    cases = []  # [(code_id, ratio, [paths...])]
+    for (code_id, ratio), paths in grouped_images.items():
+        paths.sort(key=lambda p: (_extract_page_num_from_filename(p), os.path.basename(p)))
+        cases.append((code_id, ratio, paths))
+    cases.sort(key=lambda x: (x[0], x[1]))
+
+    print(f"🧩 Total cases to OCR (single-turn): {len(cases)}")
 
     if OCR_CONCURRENCY <= 1:
-        for i, image_path in enumerate(image_paths, start=1):
-            print(f"[{i}/{len(image_paths)}] OCR: {os.path.basename(image_path)}")
-            if image_path in done:
+        for i, (code_id, ratio, page_paths) in enumerate(cases, start=1):
+            case_key = f"{code_id}|{ratio}"
+            if case_key in done:
                 skipped += 1
                 continue
+            print(
+                f"[{i}/{len(cases)}] OCR(single-turn): {code_id} @ ratio {ratio}x ({len(page_paths)} pages)"
+            )
 
-            # 路径结构: images/{code_id}/{variant_folder}/page_xxx.png
-            # 需要取上两层目录才是 code_id
-            parent_dir = os.path.dirname(image_path)            # .../1024x1500_hl_nl
-            code_id_dir = os.path.dirname(parent_dir)           # .../{code_id}
-            code_id = os.path.basename(code_id_dir)
-            ratio = _parse_ratio_from_filename(image_path)
-
-            data_url = _encode_image_to_data_url(image_path)
+            content = [{"type": "text", "text": OCR_USER_PROMPT}]
+            for p in page_paths:
+                data_url = _encode_image_to_data_url(p)
+                content.append({"type": "image_url", "image_url": {"url": data_url}})
 
             last_err = None
             text = ""
@@ -283,10 +313,7 @@ def run_module_3_gpt52(images_dir: str, output_dir: str):
                             {"role": "system", "content": OCR_SYSTEM_PROMPT},
                             {
                                 "role": "user",
-                                "content": [
-                                    {"type": "text", "text": OCR_USER_PROMPT},
-                                    {"type": "image_url", "image_url": {"url": data_url}},
-                                ],
+                                "content": content,
                             },
                         ],
                     )
@@ -302,7 +329,10 @@ def run_module_3_gpt52(images_dir: str, output_dir: str):
             rec = {
                 "code_id": code_id,
                 "ratio": ratio,
-                "image_path": image_path,
+                "num_pages": len(page_paths),
+                "image_paths": page_paths,
+                # 兼容旧逻辑：保留第一张图路径
+                "image_path": page_paths[0] if page_paths else "",
                 "model": GPT_MODEL_NAME,  # 🌟 记录模型名称
             }
 
@@ -321,8 +351,8 @@ def run_module_3_gpt52(images_dir: str, output_dir: str):
         from concurrent.futures import ThreadPoolExecutor, as_completed
         import threading
 
-        pending_paths = [p for p in image_paths if p not in done]
-        skipped = len(image_paths) - len(pending_paths)
+        pending_cases = [(code_id, ratio, page_paths) for (code_id, ratio, page_paths) in cases if f"{code_id}|{ratio}" not in done]
+        skipped = len(cases) - len(pending_cases)
 
         print(
             f"⚡ Parallel OCR enabled: workers={OCR_CONCURRENCY}, "
@@ -357,12 +387,11 @@ def run_module_3_gpt52(images_dir: str, output_dir: str):
             if wait_s > 0:
                 time.sleep(wait_s)
 
-        def _ocr_one(image_path: str):
-            parent_dir = os.path.dirname(image_path)
-            code_id_dir = os.path.dirname(parent_dir)
-            code_id = os.path.basename(code_id_dir)
-            ratio = _parse_ratio_from_filename(image_path)
-            data_url = _encode_image_to_data_url(image_path)
+        def _ocr_one_case(code_id: str, ratio: int, page_paths: list[str]):
+            content = [{"type": "text", "text": OCR_USER_PROMPT}]
+            for p in page_paths:
+                data_url = _encode_image_to_data_url(p)
+                content.append({"type": "image_url", "image_url": {"url": data_url}})
 
             last_err = None
             text = ""
@@ -378,10 +407,7 @@ def run_module_3_gpt52(images_dir: str, output_dir: str):
                             {"role": "system", "content": OCR_SYSTEM_PROMPT},
                             {
                                 "role": "user",
-                                "content": [
-                                    {"type": "text", "text": OCR_USER_PROMPT},
-                                    {"type": "image_url", "image_url": {"url": data_url}},
-                                ],
+                                "content": content,
                             },
                         ],
                     )
@@ -396,7 +422,9 @@ def run_module_3_gpt52(images_dir: str, output_dir: str):
             rec = {
                 "code_id": code_id,
                 "ratio": ratio,
-                "image_path": image_path,
+                "num_pages": len(page_paths),
+                "image_paths": page_paths,
+                "image_path": page_paths[0] if page_paths else "",
                 "model": GPT_MODEL_NAME,
             }
             if last_err is None:
@@ -406,19 +434,21 @@ def run_module_3_gpt52(images_dir: str, output_dir: str):
             return rec, False
 
         completed = 0
-        total_jobs = len(pending_paths)
+        total_jobs = len(pending_cases)
 
         with ThreadPoolExecutor(max_workers=OCR_CONCURRENCY) as ex:
-            futures = {ex.submit(_ocr_one, p): p for p in pending_paths}
+            futures = {ex.submit(_ocr_one_case, code_id, ratio, page_paths): (code_id, ratio, page_paths) for (code_id, ratio, page_paths) in pending_cases}
             for fut in as_completed(futures):
-                image_path = futures[fut]
+                code_id, ratio, page_paths = futures[fut]
                 try:
                     rec, ok = fut.result()
                 except Exception as e:
                     rec = {
-                        "code_id": "",
-                        "ratio": _parse_ratio_from_filename(image_path),
-                        "image_path": image_path,
+                        "code_id": code_id,
+                        "ratio": ratio,
+                        "num_pages": len(page_paths),
+                        "image_paths": page_paths,
+                        "image_path": page_paths[0] if page_paths else "",
                         "model": GPT_MODEL_NAME,
                         "error": f"worker_exception: {e}",
                     }
@@ -434,7 +464,7 @@ def run_module_3_gpt52(images_dir: str, output_dir: str):
                 else:
                     errors += 1
                 print(
-                    f"[{completed}/{total_jobs}] OCR done: {os.path.basename(image_path)} "
+                    f"[{completed}/{total_jobs}] OCR done: {code_id} @ ratio {ratio}x "
                     f"({'ok' if ok else 'error'})"
                 )
 
@@ -1079,31 +1109,44 @@ def run_module_4_judge(
             if line.strip():
                 ocr_results.append(json.loads(line))
 
-    # 🌟 核心修复：按 (code_id, ratio) 分组，合并多页结果
+    # 🌟 按 (code_id, ratio) 分组：
+    # - 旧格式：每页一条记录（image_path/text），需要合并多页
+    # - 新格式（single-turn）：每样本一条记录（image_paths/num_pages/text），无需再拼页
     from collections import defaultdict
-    grouped = defaultdict(list)  # (code_id, ratio) -> [{"text": ..., "image_path": ...}, ...]
-    
+    grouped = defaultdict(list)  # (code_id, ratio) -> [{"text": ..., "image_path": ..., "num_pages": ...?}, ...]
+
     for rec in ocr_results:
-        # 提取 code_id
-        img_path = rec.get("image_path", "")
-        parts = img_path.replace("\\", "/").split("/")
-        code_id = parts[-3] if len(parts) >= 3 else rec.get("code_id", "")
-        
         ratio = rec.get("ratio", 1)
         ocr_text = rec.get("text", "")
-        
+
         # 跳过错误结果
         if not ocr_text or "error" in rec:
             continue
-        
+
+        # 优先使用显式 code_id；否则从 image_path 回推
+        code_id = rec.get("code_id", "")
+        img_path = rec.get("image_path", "")
+        if not code_id and img_path:
+            parts = img_path.replace("\\", "/").split("/")
+            code_id = parts[-3] if len(parts) >= 3 else ""
+
+        if not code_id:
+            continue
+
         # 清理特殊标记（关键！）
         ocr_text = ocr_text.replace('<|begin_of_box|>', '').replace('<|end_of_box|>', '').strip()
-        
-        # 按 (code_id, ratio) 分组
-        grouped[(code_id, ratio)].append({
-            "text": ocr_text,
-            "image_path": img_path,
-        })
+
+        if rec.get("image_paths"):
+            grouped[(code_id, ratio)].append({
+                "text": ocr_text,
+                "image_path": img_path,
+                "num_pages": int(rec.get("num_pages") or len(rec.get("image_paths") or [])),
+            })
+        else:
+            grouped[(code_id, ratio)].append({
+                "text": ocr_text,
+                "image_path": img_path,
+            })
 
     # 评估结果
     detail_path = os.path.join(output_dir, f"judge_results_detail_{model_tag}.jsonl")
@@ -1135,12 +1178,18 @@ def run_module_4_judge(
             print(f"[{idx}/{total}] ⚠️ No ground truth for {code_id}, skipping")
             continue
 
-        # 🌟 合并多页 OCR 结果（按文件名排序确保顺序正确）
-        pages.sort(key=lambda x: x["image_path"])
-        merged_ocr = '\n'.join([p["text"] for p in pages])
-        
+        # 🌟 合并多页 OCR 结果：
+        # - single-turn：pages 只有一条（整段文本），不再拼页
+        # - legacy：按 image_path 排序后拼接
+        pages.sort(key=lambda x: x.get("image_path", ""))
+        if len(pages) == 1 and ("num_pages" in pages[0]):
+            merged_ocr = pages[0]["text"]
+            num_pages = int(pages[0].get("num_pages") or 1)
+        else:
+            merged_ocr = '\n'.join([p["text"] for p in pages])
+            num_pages = len(pages)
+
         evaluated += 1
-        num_pages = len(pages)
         print(f"[{idx}/{total}] Evaluating: {code_id} @ ratio {ratio}x ({num_pages} pages)")
 
         # 🌟 规范化处理（用于 hard metrics）
