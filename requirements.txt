@@ -1,0 +1,62 @@
+annotated-types==0.7.0
+anyio==4.12.1
+brotlicffi @ file:///C:/miniconda3/conda-bld/brotlicffi_1764961372591/work
+certifi @ file:///C:/Users/task_176765902528894/croot/certifi_1767659216804/work/certifi
+cffi @ file:///C:/miniconda3/conda-bld/cffi_1761832794697/work
+charset-normalizer @ file:///C:/miniconda3/conda-bld/charset-normalizer_1761744944645/work
+colorama==0.4.6
+contourpy==1.3.2
+cryptography @ file:///C:/miniconda3/conda-bld/cryptography-split_1761931984548/work
+cycler==0.12.1
+distro==1.9.0
+exceptiongroup==1.3.1
+filelock==3.20.2
+fonttools==4.61.1
+fsspec==2025.12.0
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
+huggingface-hub==0.36.0
+idna @ file:///C:/miniconda3/conda-bld/idna_1761912044311/work
+Jinja2==3.1.6
+jiter==0.12.0
+kiwisolver==1.4.9
+MarkupSafe==3.0.3
+matplotlib==3.10.8
+mpmath==1.3.0
+networkx==3.4.2
+numpy==2.2.6
+openai==2.14.0
+packaging==25.0
+pandas==2.3.3
+pillow==12.1.0
+pycparser @ file:///C:/miniconda3/conda-bld/pycparser_1757496059965/work
+pydantic==2.12.5
+pydantic_core==2.41.5
+PyGithub @ file:///C:/miniconda3/conda-bld/pygithub_1762271604021/work
+Pygments==2.19.2
+PyJWT @ file:///C:/miniconda3/conda-bld/pyjwt_1764332276982/work
+PyNaCl @ file:///C:/miniconda3/conda-bld/pynacl_1758892089316/work
+pyparsing==3.3.1
+PySocks @ file:///C:/miniconda3/conda-bld/pysocks_1761753030270/work
+python-dateutil==2.9.0.post0
+pytz==2025.2
+PyYAML==6.0.3
+regex==2025.11.3
+requests @ file:///C:/miniconda3/conda-bld/requests_1762359612241/work
+safetensors==0.7.0
+six @ file:///C:/b/abs_149wuyuo1o/croot/six_1744271521515/work
+sniffio==1.3.1
+sympy==1.14.0
+tiktoken==0.12.0
+tokenizers==0.22.2
+torch==2.9.1
+torchaudio==2.9.1
+torchvision==0.24.1
+tqdm==4.67.1
+transformers==4.57.3
+typing-inspection==0.4.2
+typing_extensions @ file:///C:/b/abs_ecq8gc0vbm/croot/typing_extensions_1756281142218/work
+tzdata==2025.3
+urllib3 @ file:///C:/Users/task_176781036207501/croot/urllib3_1767810484846/work
+win_inet_pton @ file:///C:/miniconda3/conda-bld/win_inet_pton_1761746276406/work
