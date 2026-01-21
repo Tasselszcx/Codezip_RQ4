@@ -1,6 +1,6 @@
 ## 1. API Key 配置
 
-脚本默认从环境变量或 `.env` 文件中读取 `AIHUBMIX_API_KEY`，可以让AI帮忙改一下api_key的调用，在`.env`文件中同步更改一下。
+脚本默认从环境变量或 `.env` 文件中读取 `AIHUBMIX_API_KEY`，可以让AI帮忙改一下api_key的调用，将项目根目录下的 .env copy 重命名为 .env，在`.env`文件中同步更改一下。
 
 ## 2. 打开一个powershell窗口，配置环境变量如下（直接复制粘贴进去）
 
