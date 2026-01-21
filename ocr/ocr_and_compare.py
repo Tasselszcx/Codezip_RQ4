@@ -10,26 +10,29 @@ import json
 import glob
 import base64
 import time
-from openai import OpenAI
+#from openai import OpenAI
 import difflib
 import re
 
 
-def normalize_blank_lines(text):
-    """规范化空行：压缩连续空行为单个空行，统一处理头尾空行"""
+def normalize_code(text: str) -> str:
+    """代码规范化（仅用于评估指标，不改变 OCR 原始输出的保存）：
+
+    - Tab → 4 spaces：统一缩进风格
+    - 去除行尾空格：消除 trailing spaces 噪声
+    - 压缩连续空行：多个空行 → 单个空行
+    - 去除首尾空行：统一文件头尾格式
+    """
     lines = text.splitlines()
-    
-    # 去除头尾空行
-    while lines and not lines[0].strip():
-        lines.pop(0)
-    while lines and not lines[-1].strip():
-        lines.pop()
-    
-    # 压缩连续空行为单个空行
-    normalized = []
+
+    # Tab → 4 spaces + 去除行尾空格
+    lines = [line.replace('\t', '    ').rstrip() for line in lines]
+
+    # 压缩连续空行
+    normalized: list[str] = []
     prev_blank = False
     for line in lines:
-        is_blank = not line.strip()
+        is_blank = (line.strip() == '')
         if is_blank:
             if not prev_blank:
                 normalized.append('')
@@ -37,7 +40,13 @@ def normalize_blank_lines(text):
         else:
             normalized.append(line)
             prev_blank = False
-    
+
+    # 去除首尾空行
+    while normalized and normalized[0] == '':
+        normalized.pop(0)
+    while normalized and normalized[-1] == '':
+        normalized.pop()
+
     return '\n'.join(normalized)
 
 
@@ -344,10 +353,10 @@ def main_from_cache(code_id, ratio):
     original_code = dataset[code_id]['code']
     print(f"✅ Loaded original: {len(original_code)} chars, {len(original_code.splitlines())} lines")
     
-    # 规范化空行后再计算指标
-    print(f"\n⏳ Normalizing blank lines...")
-    original_normalized = normalize_blank_lines(original_code)
-    ocr_normalized = normalize_blank_lines(ocr_text)
+    # 规范化代码后再计算指标（用于验证：tab/行尾空格/空行/首尾空行）
+    print(f"\n⏳ Normalizing code (tabs/trailing spaces/blank lines/head-tail)...")
+    original_normalized = normalize_code(original_code)
+    ocr_normalized = normalize_code(ocr_text)
     
     print(f"After normalization:")
     print(f"  Original: {len(original_normalized)} chars, {len(original_normalized.splitlines())} lines")
@@ -368,7 +377,7 @@ def main_from_cache(code_id, ratio):
     print(f"  CER (Character Error Rate):  {cer_raw:.2f}%")
     print(f"  WER (Word Error Rate):       {wer_raw:.2f}%")
     print(f"  BLEU Score:                  {bleu_raw:.2f}")
-    print(f"\n✨ Normalized (after blank line normalization):")
+    print(f"\n✨ Normalized (after code normalization):")
     print(f"  CER (Character Error Rate):  {cer_norm:.2f}%")
     print(f"  WER (Word Error Rate):       {wer_norm:.2f}%")
     print(f"  BLEU Score:                  {bleu_norm:.2f}")
@@ -384,7 +393,7 @@ def main_from_cache(code_id, ratio):
     print("=" * 80)
     
     # Print detailed diff (使用规范化后的版本)
-    print("\n[Note: Showing diff after blank line normalization]")
+    print("\n[Note: Showing diff after code normalization]")
     print_diff_report(original_normalized, ocr_normalized)
     
     # Save outputs (保存原始和规范化后的版本)

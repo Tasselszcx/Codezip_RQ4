@@ -48,7 +48,7 @@ MIN_STARS = 50              # 最小 Star 数
 MAX_STARS = 400             # 最大 Star 数
 MIN_LINES = 50              # 最小行数
 MAX_LINES = 120             # 最大行数
-LIMIT = 50
+LIMIT = 100
                   # 抓取数量
 OUTPUT_FILE = "dataset_fresh_2025.json"
 

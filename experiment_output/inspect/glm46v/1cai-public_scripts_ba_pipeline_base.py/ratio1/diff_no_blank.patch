@@ -1,0 +1,130 @@
+--- ref_no_blank.py
++++ ocr_no_blank.py
+@@ -1,4 +1,4 @@
+-# [NEXUS IDENTITY] ID: 3850882375745577702 | DATE: 2025-11-19
+
++[SOURCE_IDENTITY] ID: 3850882375745577702 | DATE: 2025-11-19
+
+ from __future__ import annotations
+
+ import abc
+
+ import json
+
+@@ -35,31 +35,31 @@
+     description: str = ""
+
+     def __init__(self, *, now: Optional[datetime] = None) -> None:
+
+         self.now = now or datetime.now(timezone.utc)
+
+-    @abc.abstractmethod
+
+-    def collect(
+
+-        self,
+
+-        *,
+
+-        output_dir: Path,
+
+-        since: Optional[datetime],
+
+-    ) -> CollectorResult:
+
+-        """Collect data and persist JSON payload to `output_dir`."""
+
+-    def _write_output(self, output_dir: Path, payload: List[Dict[str, Any]]) -> Path:
+
+-        timestamp = self.now.strftime("%Y%m%dT%H%M%SZ")
+
+-        file_path = output_dir / f"{self.name}_{timestamp}.json"
+
+-        with file_path.open("w", encoding="utf-8") as f:
+
+-            json.dump(
+
+-                {
+
+-                    "collector": self.name,
+
+-                    "generated_at": self.now.isoformat(),
+
+-                    "records": payload,
+
+-                },
+
+-                f,
+
+-                ensure_ascii=False,
+
+-                indent=2,
+
+-            )
+
+-        return file_path
+
+-    @staticmethod
+
+-    def parse_since(days: Optional[int]) -> Optional[datetime]:
+
+-        if days is None:
+
+-            return None
+
+-        return datetime.now(timezone.utc) - timedelta(days=days)
++        @abstractmethod
+
++        def collect(
+
++            self,
+
++            *,
+
++            output_dir: Path,
+
++            since: Optional[datetime],
+
++        ) -> CollectorResult:
+
++            """Collect data and persist JSON payload to `output_dir`."""
+
++        def _write_output(self, output_dir: Path, payload: List[Dict[str, Any]]]) -> Path:
+
++            timestamp = self.now.strftime("%Y%m%dT%H%M%SZ")
+
++            file_path = output_dir / f"{self.name}_{timestamp}.json"
+
++            with file_path.open("w", encoding="utf-8") as f:
+
++                json.dump(
+
++                    {
+
++                        "collector": self.name,
+
++                        "generated_at": self.now.isoformat(),
+
++                        "records": payload,
+
++                    },
+
++                    f,
+
++                    ensure_ascii=False,
+
++                    indent=2,
+
++                )
+
++            return file_path
+
++        @staticmethod
+
++        def parse_since(days: Optional[int]) -> Optional[datetime]:
+
++            if days is None:
+
++                return None
+
++            return datetime.now(timezone.utc) - timedelta(days=days)

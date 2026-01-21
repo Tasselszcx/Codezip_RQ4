@@ -1,0 +1,33 @@
+--- ref_no_blank.py
++++ ocr_no_blank.py
+@@ -1,6 +1,4 @@
+-"""
+
+-Strategy registry and factory.
+
+-"""
+
++# Strategy registry and factory.
+
+ from __future__ import annotations
+
+ from typing import Dict, List, Optional, Type
+
+ from .base import StrategyBase, StrategyMeta
+
+@@ -15,7 +13,7 @@
+ )
+
+ class StrategyRegistry:
+
+     def __init__(self) -> None:
+
+-        self._registry: Dict[str, Type[StrategyBase]] = {
+
++        self._registry: Dict[str, Type[StrategyBase]]] = {
+
+             "momentum": MomentumStrategy,
+
+             "value": ValueStrategy,
+
+             "trend_following": TrendFollowingStrategy,

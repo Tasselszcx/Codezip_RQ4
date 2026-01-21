@@ -54,7 +54,7 @@ def get_flat_filename(filename: str) -> str:
 
 def get_font(font_size: int, font_path: str = None):
     """
-    获取Monospace字体对象
+    获取Monospace字体对象（优先支持中文）
 
     Args:
         font_size: 字体大小（像素）
@@ -70,23 +70,35 @@ def get_font(font_size: int, font_path: str = None):
             print(f"  使用指定字体: {font_path}")
             return font
         else:
-            # 尝试使用系统Monospace字体（按优先级排序）
+            # 🌟 优先使用支持中文的等宽字体（Windows系统）
             monospace_font_paths = [
-                # Linux常见Monospace字体
+                # Windows 中文等宽字体（优先）
+                "C:/Windows/Fonts/simhei.ttf",      # 黑体（支持中文）
+                "C:/Windows/Fonts/msyh.ttc",        # 微软雅黑（支持中文，常用）
+                "C:/Windows/Fonts/simsun.ttc",      # 宋体（支持中文）
+                "C:/Windows/Fonts/STXIHEI.TTF",     # 华文细黑（macOS/Windows）
+                "C:/Windows/Fonts/simkai.ttf",      # 楷体（支持中文）
+                # Windows 英文等宽字体（备选）
+                "C:/Windows/Fonts/consola.ttf",     # Consolas（英文等宽）
+                "C:/Windows/Fonts/cour.ttf",        # Courier New
+                "C:/Windows/Fonts/courbd.ttf",
+                "C:/Windows/Fonts/lucon.ttf",       # Lucida Console
+                # Linux 支持中文的字体
+                "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",       # 文泉驿微米黑
+                "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",         # 文泉驿正黑
+                "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",  # Noto CJK
+                "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+                # Linux 英文等宽字体（备选）
                 "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
                 "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
                 "/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf",
-                "/usr/share/fonts/truetype/courier/Courier_New.ttf",
-                "/usr/share/fonts/truetype/noto/NotoMono-Regular.ttf",
-                # macOS Monospace字体
+                # macOS 中文字体
+                "/System/Library/Fonts/STHeiti Light.ttc",      # 华文黑体
+                "/System/Library/Fonts/PingFang.ttc",           # 苹方（支持中文）
+                "/Library/Fonts/Arial Unicode.ttf",             # Arial Unicode MS（支持多语言）
+                # macOS 英文等宽字体（备选）
                 "/System/Library/Fonts/Menlo.ttc",
                 "/Library/Fonts/Courier New.ttf",
-                "/System/Library/Fonts/Courier.ttc",
-                # Windows Monospace字体
-                "C:/Windows/Fonts/consola.ttf",
-                "C:/Windows/Fonts/cour.ttf",
-                "C:/Windows/Fonts/courbd.ttf",
-                "C:/Windows/Fonts/lucon.ttf",
             ]
 
             font = None
@@ -102,8 +114,11 @@ def get_font(font_size: int, font_path: str = None):
                         continue
 
             if font is None:
-                # 如果所有Monospace字体都找不到，尝试使用PIL默认字体
+                # 如果所有字体都找不到，尝试使用PIL默认字体
                 font = ImageFont.load_default()
+                print("  警告: 未找到合适的TrueType字体，使用PIL默认字体（可能不支持中文）")
+            else:
+                print(f"  使用字体: {os.path.basename(used_font)}")
 
             return font
     except Exception as e:

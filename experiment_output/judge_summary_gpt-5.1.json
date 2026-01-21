@@ -1,0 +1,218 @@
+{
+  "ratio_1x": {
+    "count": 25,
+    "avg_cer": 0.0056,
+    "avg_wer": 0.0154,
+    "avg_token_bleu": 0.9852,
+    "avg_codebleu": 0.9881,
+    "avg_exact_match_rate": 0.7869,
+    "avg_codediff_line_similarity_no_blank": 0.9474,
+    "avg_codediff_change_rate_no_blank": 0.0547,
+    "avg_codediff_added_lines_no_blank": 0.0,
+    "avg_codediff_removed_lines_no_blank": 0.04,
+    "avg_codediff_replaced_lines_no_blank": 2.96,
+    "avg_codediff_diff_hunks_no_blank": 2.04,
+    "error_counts": {
+      "Indentation_Error": 19,
+      "Symbol_Loss": 2,
+      "Repetition": 5,
+      "Line_Skipped": 4,
+      "Code_Invention": 5,
+      "Visual_Typo": 2,
+      "Variable_Hallucination": 1
+    },
+    "error_rates": {
+      "Indentation_Error": 0.76,
+      "Symbol_Loss": 0.08,
+      "Repetition": 0.2,
+      "Line_Skipped": 0.16,
+      "Code_Invention": 0.2,
+      "Visual_Typo": 0.08,
+      "Variable_Hallucination": 0.04
+    },
+    "error_group_counts": {
+      "Recognition": 4,
+      "Structure": 28,
+      "Hallucination": 6
+    },
+    "error_group_rates": {
+      "Recognition": 0.16,
+      "Structure": 1.12,
+      "Hallucination": 0.24
+    }
+  },
+  "ratio_2x": {
+    "count": 25,
+    "avg_cer": 0.0119,
+    "avg_wer": 0.0273,
+    "avg_token_bleu": 0.9692,
+    "avg_codebleu": 0.9748,
+    "avg_exact_match_rate": 0.5992,
+    "avg_codediff_line_similarity_no_blank": 0.9258,
+    "avg_codediff_change_rate_no_blank": 0.0819,
+    "avg_codediff_added_lines_no_blank": 0.08,
+    "avg_codediff_removed_lines_no_blank": 0.04,
+    "avg_codediff_replaced_lines_no_blank": 4.6,
+    "avg_codediff_diff_hunks_no_blank": 3.16,
+    "error_counts": {
+      "Indentation_Error": 22,
+      "Variable_Hallucination": 3,
+      "Visual_Typo": 2,
+      "Symbol_Loss": 4,
+      "Code_Invention": 4,
+      "Line_Skipped": 6,
+      "Repetition": 5
+    },
+    "error_rates": {
+      "Indentation_Error": 0.88,
+      "Variable_Hallucination": 0.12,
+      "Visual_Typo": 0.08,
+      "Symbol_Loss": 0.16,
+      "Code_Invention": 0.16,
+      "Line_Skipped": 0.24,
+      "Repetition": 0.2
+    },
+    "error_group_counts": {
+      "Recognition": 6,
+      "Structure": 33,
+      "Hallucination": 7
+    },
+    "error_group_rates": {
+      "Recognition": 0.24,
+      "Structure": 1.32,
+      "Hallucination": 0.28
+    }
+  },
+  "ratio_4x": {
+    "count": 25,
+    "avg_cer": 0.0486,
+    "avg_wer": 0.1102,
+    "avg_token_bleu": 0.8909,
+    "avg_codebleu": 0.9109,
+    "avg_exact_match_rate": 0.4364,
+    "avg_codediff_line_similarity_no_blank": 0.7732,
+    "avg_codediff_change_rate_no_blank": 0.2495,
+    "avg_codediff_added_lines_no_blank": 0.16,
+    "avg_codediff_removed_lines_no_blank": 0.4,
+    "avg_codediff_replaced_lines_no_blank": 13.96,
+    "avg_codediff_diff_hunks_no_blank": 8.16,
+    "error_counts": {
+      "Indentation_Error": 23,
+      "Line_Skipped": 21,
+      "Code_Invention": 20,
+      "Visual_Typo": 9,
+      "Variable_Hallucination": 15,
+      "Symbol_Loss": 6,
+      "Repetition": 5,
+      "Comment_Loss": 1
+    },
+    "error_rates": {
+      "Indentation_Error": 0.92,
+      "Line_Skipped": 0.84,
+      "Code_Invention": 0.8,
+      "Visual_Typo": 0.36,
+      "Variable_Hallucination": 0.6,
+      "Symbol_Loss": 0.24,
+      "Repetition": 0.2,
+      "Comment_Loss": 0.04
+    },
+    "error_group_counts": {
+      "Recognition": 16,
+      "Structure": 49,
+      "Hallucination": 35
+    },
+    "error_group_rates": {
+      "Recognition": 0.64,
+      "Structure": 1.96,
+      "Hallucination": 1.4
+    }
+  },
+  "ratio_6x": {
+    "count": 25,
+    "avg_cer": 0.5281,
+    "avg_wer": 0.7016,
+    "avg_token_bleu": 0.4917,
+    "avg_codebleu": 0.5582,
+    "avg_exact_match_rate": 0.2217,
+    "avg_codediff_line_similarity_no_blank": 0.3351,
+    "avg_codediff_change_rate_no_blank": 0.939,
+    "avg_codediff_added_lines_no_blank": 0.52,
+    "avg_codediff_removed_lines_no_blank": 0.76,
+    "avg_codediff_replaced_lines_no_blank": 52.32,
+    "avg_codediff_diff_hunks_no_blank": 9.76,
+    "error_counts": {
+      "Visual_Typo": 23,
+      "Symbol_Loss": 18,
+      "Indentation_Error": 23,
+      "Line_Skipped": 25,
+      "Variable_Hallucination": 25,
+      "Code_Invention": 25,
+      "Repetition": 8,
+      "Comment_Loss": 3
+    },
+    "error_rates": {
+      "Visual_Typo": 0.92,
+      "Symbol_Loss": 0.72,
+      "Indentation_Error": 0.92,
+      "Line_Skipped": 1.0,
+      "Variable_Hallucination": 1.0,
+      "Code_Invention": 1.0,
+      "Repetition": 0.32,
+      "Comment_Loss": 0.12
+    },
+    "error_group_counts": {
+      "Recognition": 44,
+      "Structure": 56,
+      "Hallucination": 50
+    },
+    "error_group_rates": {
+      "Recognition": 1.76,
+      "Structure": 2.24,
+      "Hallucination": 2.0
+    }
+  },
+  "ratio_8x": {
+    "count": 25,
+    "avg_cer": 1.0325,
+    "avg_wer": 1.2798,
+    "avg_token_bleu": 0.1733,
+    "avg_codebleu": 0.2699,
+    "avg_exact_match_rate": 0.0872,
+    "avg_codediff_line_similarity_no_blank": 0.0761,
+    "avg_codediff_change_rate_no_blank": 1.5846,
+    "avg_codediff_added_lines_no_blank": 0.04,
+    "avg_codediff_removed_lines_no_blank": 1.04,
+    "avg_codediff_replaced_lines_no_blank": 89.76,
+    "avg_codediff_diff_hunks_no_blank": 4.48,
+    "error_counts": {
+      "Visual_Typo": 24,
+      "Indentation_Error": 25,
+      "Line_Skipped": 25,
+      "Variable_Hallucination": 25,
+      "Code_Invention": 25,
+      "Symbol_Loss": 22,
+      "Repetition": 6,
+      "Comment_Loss": 7
+    },
+    "error_rates": {
+      "Visual_Typo": 0.96,
+      "Indentation_Error": 1.0,
+      "Line_Skipped": 1.0,
+      "Variable_Hallucination": 1.0,
+      "Code_Invention": 1.0,
+      "Symbol_Loss": 0.88,
+      "Repetition": 0.24,
+      "Comment_Loss": 0.28
+    },
+    "error_group_counts": {
+      "Recognition": 53,
+      "Structure": 56,
+      "Hallucination": 50
+    },
+    "error_group_rates": {
+      "Recognition": 2.12,
+      "Structure": 2.24,
+      "Hallucination": 2.0
+    }
+  }
+}
